@@ -41,6 +41,8 @@ export default function Home() {
   const spinRafRef = useRef<number | null>(null);
   const videoFrameCallbackIdRef = useRef<number | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const [showDebug, setShowDebug] = useState(true);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   const historyRef = useRef<Point[]>([]);
   const lastSwipeAtRef = useRef(0);
@@ -215,6 +217,18 @@ export default function Home() {
     });
   }
 
+  async function toggleFullscreen() {
+    try {
+      if (!document.fullscreenElement) {
+        await document.documentElement.requestFullscreen();
+      } else {
+        await document.exitFullscreen();
+      }
+    } catch (err) {
+      console.error("Fullscreen toggle failed:", err);
+    }
+  }
+
   useEffect(() => {
     const id = window.setInterval(() => {
       setDebugSpinVelocity(debugRef.current.spinVelocity);
@@ -225,6 +239,34 @@ export default function Home() {
     }, 100);
 
     return () => window.clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.repeat) return;
+  
+      const key = event.key.toLowerCase();
+  
+      if (key === "d") {
+        setShowDebug((prev) => !prev);
+      }
+  
+      if (key === "f") {
+        void toggleFullscreen();
+      }
+    };
+  
+    const onFullscreenChange = () => {
+      setIsFullscreen(Boolean(document.fullscreenElement));
+    };
+  
+    window.addEventListener("keydown", onKeyDown);
+    document.addEventListener("fullscreenchange", onFullscreenChange);
+  
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      document.removeEventListener("fullscreenchange", onFullscreenChange);
+    };
   }, []);
 
   useEffect(() => {
@@ -593,7 +635,8 @@ export default function Home() {
   return (
     <main
       style={{
-        minHeight: "100vh",
+        width: "100vw",
+        height: "100vh",
         background: "#000",
         color: "#fff",
         overflow: "hidden",
@@ -702,32 +745,34 @@ export default function Home() {
         Video {currentIndex + 1} / {VIDEO_COUNT}
       </div>
 
-      <div
-        style={{
-          position: "fixed",
-          left: 20,
-          top: 20,
-          zIndex: 10,
-          minWidth: 260,
-          padding: 14,
-          borderRadius: 16,
-          background: "rgba(0,0,0,0.55)",
-          border: "1px solid rgba(255,255,255,0.12)",
-          backdropFilter: "blur(10px)",
-          fontSize: 12,
-          lineHeight: 1.6,
-          fontVariantNumeric: "tabular-nums",
-        }}
-      >
-        <div style={{ fontWeight: 700, marginBottom: 6 }}>Momentum Debug</div>
-        <div>spinVelocity: {debugSpinVelocity.toFixed(3)}</div>
-        <div>spinPosition: {debugSpinPosition.toFixed(3)}</div>
-        <div>deltaX: {debugDeltaX.toFixed(4)}</div>
-        <div>swipeVelocity: {debugSwipeVelocity.toFixed(5)}</div>
-        <div>impulse: {debugImpulse.toFixed(3)}</div>
-        <div>maxSpinVelocity: {MAX_SPIN_VELOCITY}</div>
-        <div>damping: {SPIN_DAMPING_PER_SECOND}</div>
-      </div>
+      {showDebug && (
+        <div
+          style={{
+            position: "fixed",
+            left: 20,
+            top: 20,
+            zIndex: 10,
+            minWidth: 260,
+            padding: 14,
+            borderRadius: 16,
+            background: "rgba(0,0,0,0.55)",
+            border: "1px solid rgba(255,255,255,0.12)",
+            backdropFilter: "blur(10px)",
+            fontSize: 12,
+            lineHeight: 1.6,
+            fontVariantNumeric: "tabular-nums",
+          }}
+        >
+          <div style={{ fontWeight: 700, marginBottom: 6 }}>Momentum Debug</div>
+          <div>spinVelocity: {debugSpinVelocity.toFixed(3)}</div>
+          <div>spinPosition: {debugSpinPosition.toFixed(3)}</div>
+          <div>deltaX: {debugDeltaX.toFixed(4)}</div>
+          <div>swipeVelocity: {debugSwipeVelocity.toFixed(5)}</div>
+          <div>impulse: {debugImpulse.toFixed(3)}</div>
+          <div>maxSpinVelocity: {MAX_SPIN_VELOCITY}</div>
+          <div>damping: {SPIN_DAMPING_PER_SECOND}</div>
+        </div>
+      )}
 
       <div
         style={{
