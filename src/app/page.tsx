@@ -664,7 +664,7 @@ export default function Home() {
             inset: 0,
             width: "100%",
             height: "100%",
-            objectFit: "contain",
+            objectFit: "fill",
             opacity: appReady ? 1 : 0,
             transition: "opacity 0ms linear",
             pointerEvents: "none",
