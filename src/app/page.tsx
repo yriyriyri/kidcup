@@ -881,8 +881,9 @@ export default function Home() {
       <div
         style={{
           position: "fixed",
-          right: 20,
-          bottom: 20,
+          left: 20,
+          top: 20,
+          transformOrigin: "top left",
           zIndex: 10,
           width: 220,
           aspectRatio: "4 / 3",
@@ -892,7 +893,6 @@ export default function Home() {
           background: "#111",
           boxShadow: "0 12px 40px rgba(0,0,0,0.35)",
           transform: "scaleX(1.7777)",
-          transformOrigin: "bottom right",
           pointerEvents: "none",
         }}
       >
