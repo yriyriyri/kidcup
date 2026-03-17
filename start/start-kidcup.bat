@@ -3,7 +3,7 @@ setlocal
 
 cd /d "%USERPROFILE%\Desktop\kidcup"
 
-call npm run start
+start "" cmd /c "npm run start"
 
 timeout /t 5 /nobreak >nul
 
