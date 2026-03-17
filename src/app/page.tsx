@@ -725,7 +725,7 @@ export default function Home() {
     objectFit: "fill",
     pointerEvents: "none",
     background: "#000",
-    transition: "opacity 40ms linear",
+    transition: "opacity 120ms ease-out",
     willChange: "opacity",
   };
 
