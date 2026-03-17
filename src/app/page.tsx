@@ -4,16 +4,16 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { FilesetResolver, HandLandmarker } from "@mediapipe/tasks-vision";
 
 const VIDEO_COUNT = 5;
-const SWIPE_DISTANCE = 0.04;
-const SWIPE_TIME_MS = 160;
-const COOLDOWN_MS = 30;
+const SWIPE_DISTANCE = 0.085;
+const SWIPE_TIME_MS = 240;
+const COOLDOWN_MS = 120;
 
-const BASE_IMPULSE = 2;
-const DISTANCE_IMPULSE_MULTIPLIER = 55;
-const VELOCITY_IMPULSE_MULTIPLIER = 420;
-const MAX_SPIN_VELOCITY = 15;
-const SPIN_DAMPING_PER_SECOND = 0.18;
-const MIN_SPIN_VELOCITY = 0.03;
+const BASE_IMPULSE = 0.9;
+const DISTANCE_IMPULSE_MULTIPLIER = 18;
+const VELOCITY_IMPULSE_MULTIPLIER = 130;
+const MAX_SPIN_VELOCITY = 7.5;
+const SPIN_DAMPING_PER_SECOND = 0.68;
+const MIN_SPIN_VELOCITY = 0.012;
 
 type Point = {
   x: number;
@@ -398,9 +398,9 @@ export default function Home() {
       },
       runningMode: "VIDEO",
       numHands: 1,
-      minHandDetectionConfidence: 0.5,
-      minHandPresenceConfidence: 0.5,
-      minTrackingConfidence: 0.5,
+      minHandDetectionConfidence: 0.75,
+      minHandPresenceConfidence: 0.75,
+      minTrackingConfidence: 0.75,
     });
   }
 
@@ -607,7 +607,7 @@ export default function Home() {
     }
 
     if (now - lastSwipeAtRef.current < COOLDOWN_MS) return;
-    if (history.length < 2) return;
+    if (history.length < 4) return;
 
     const first = history[0];
     const last = history[history.length - 1];
@@ -628,7 +628,7 @@ export default function Home() {
         velocity * VELOCITY_IMPULSE_MULTIPLIER;
 
       debugRef.current.impulse = impulse;
-      addMomentum(Math.max(2, impulse));
+      addMomentum(Math.max(0.75, impulse));
     }
   }
 
