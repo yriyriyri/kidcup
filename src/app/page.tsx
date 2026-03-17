@@ -4,16 +4,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { FilesetResolver, HandLandmarker } from "@mediapipe/tasks-vision";
 
 const VIDEO_COUNT = 5;
-const SWIPE_DISTANCE = 0.085;
+const SWIPE_DISTANCE = 0.05;
 const SWIPE_TIME_MS = 240;
-const COOLDOWN_MS = 120;
-
-const BASE_IMPULSE = 0.9;
-const DISTANCE_IMPULSE_MULTIPLIER = 18;
-const VELOCITY_IMPULSE_MULTIPLIER = 130;
-const MAX_SPIN_VELOCITY = 7.5;
-const SPIN_DAMPING_PER_SECOND = 0.68;
-const MIN_SPIN_VELOCITY = 0.012;
+const COOLDOWN_MS = 1000;
 
 type Point = {
   x: number;
@@ -26,11 +19,8 @@ type VideoWithFrameCallback = HTMLVideoElement & {
 };
 
 type DebugValues = {
-  spinVelocity: number;
-  spinPosition: number;
   deltaX: number;
   swipeVelocity: number;
-  impulse: number;
 };
 
 export default function Home() {
@@ -39,7 +29,6 @@ export default function Home() {
   const backVideoRef = useRef<HTMLVideoElement | null>(null);
   const handLandmarkerRef = useRef<HandLandmarker | null>(null);
   const rafRef = useRef<number | null>(null);
-  const spinRafRef = useRef<number | null>(null);
   const videoFrameCallbackIdRef = useRef<number | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const [showDebug, setShowDebug] = useState(false);
@@ -53,18 +42,11 @@ export default function Home() {
   const mountedRef = useRef(true);
   const warnedDetectErrorRef = useRef(false);
 
-  const spinVelocityRef = useRef(0);
-  const spinPositionRef = useRef(0);
-  const lastSpinFrameAtRef = useRef(0);
-
   const preloadedVideosRef = useRef<Map<number, HTMLVideoElement>>(new Map());
 
   const debugRef = useRef<DebugValues>({
-    spinVelocity: 0,
-    spinPosition: 0,
     deltaX: 0,
     swipeVelocity: 0,
-    impulse: 0,
   });
 
   const visibleLayerRef = useRef<0 | 1>(0);
@@ -78,11 +60,8 @@ export default function Home() {
   const [videosReady, setVideosReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [debugSpinVelocity, setDebugSpinVelocity] = useState(0);
-  const [debugSpinPosition, setDebugSpinPosition] = useState(0);
   const [debugDeltaX, setDebugDeltaX] = useState(0);
   const [debugSwipeVelocity, setDebugSwipeVelocity] = useState(0);
-  const [debugImpulse, setDebugImpulse] = useState(0);
 
   const videoSources = useMemo(
     () => Array.from({ length: VIDEO_COUNT }, (_, i) => `/videos/${i + 1}.mp4`),
@@ -144,68 +123,6 @@ export default function Home() {
     startedLoopRef.current = false;
   }
 
-  function stopSpinLoop() {
-    if (spinRafRef.current !== null) {
-      cancelAnimationFrame(spinRafRef.current);
-      spinRafRef.current = null;
-    }
-    lastSpinFrameAtRef.current = 0;
-    spinPositionRef.current = 0;
-    debugRef.current.spinVelocity = 0;
-    debugRef.current.spinPosition = 0;
-  }
-
-  function addMomentum(amount: number) {
-    spinVelocityRef.current = Math.min(
-      MAX_SPIN_VELOCITY,
-      spinVelocityRef.current + amount
-    );
-    debugRef.current.spinVelocity = spinVelocityRef.current;
-
-    if (spinRafRef.current === null) {
-      startSpinLoop();
-    }
-  }
-
-  function startSpinLoop() {
-    const tick = (now: number) => {
-      if (!mountedRef.current) return;
-
-      if (lastSpinFrameAtRef.current === 0) {
-        lastSpinFrameAtRef.current = now;
-      }
-
-      const dtSec = (now - lastSpinFrameAtRef.current) / 1000;
-      lastSpinFrameAtRef.current = now;
-
-      let velocity = spinVelocityRef.current;
-
-      if (velocity <= MIN_SPIN_VELOCITY) {
-        spinVelocityRef.current = 0;
-        stopSpinLoop();
-        return;
-      }
-
-      spinPositionRef.current += velocity * dtSec;
-
-      const wholeSteps = Math.floor(spinPositionRef.current);
-      if (wholeSteps > 0) {
-        spinPositionRef.current -= wholeSteps;
-        setCurrentIndex((prev) => (prev + wholeSteps) % VIDEO_COUNT);
-      }
-
-      velocity *= Math.pow(SPIN_DAMPING_PER_SECOND, dtSec);
-      spinVelocityRef.current = velocity;
-
-      debugRef.current.spinVelocity = velocity;
-      debugRef.current.spinPosition = spinPositionRef.current;
-
-      spinRafRef.current = requestAnimationFrame(tick);
-    };
-
-    spinRafRef.current = requestAnimationFrame(tick);
-  }
-
   function waitForIdle(): Promise<void> {
     return new Promise((resolve) => {
       if (typeof window !== "undefined" && "requestIdleCallback" in window) {
@@ -258,12 +175,17 @@ export default function Home() {
       video.addEventListener("error", onError, { once: true });
     });
 
-    if ("requestVideoFrameCallback" in video && typeof video.requestVideoFrameCallback === "function") {
+    if (
+      "requestVideoFrameCallback" in video &&
+      typeof video.requestVideoFrameCallback === "function"
+    ) {
       await new Promise<void>((resolve) => {
         video.requestVideoFrameCallback?.(() => resolve());
       });
     } else {
-      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+      await new Promise<void>((resolve) =>
+        requestAnimationFrame(() => resolve())
+      );
     }
   }
 
@@ -280,7 +202,10 @@ export default function Home() {
     const hidden = visibleLayerRef.current === 0 ? back : front;
     const nextSrc = preloaded.currentSrc || preloaded.src;
 
-    if (currentVisibleIndexRef.current === index && hidden.style.opacity === "0") {
+    if (
+      currentVisibleIndexRef.current === index &&
+      hidden.style.opacity === "0"
+    ) {
       return;
     }
 
@@ -312,16 +237,13 @@ export default function Home() {
     const oldVisible = visible;
     window.setTimeout(() => {
       oldVisible.pause();
-    }, 40);
+    }, 140);
   }
 
   useEffect(() => {
     const id = window.setInterval(() => {
-      setDebugSpinVelocity(debugRef.current.spinVelocity);
-      setDebugSpinPosition(debugRef.current.spinPosition);
       setDebugDeltaX(debugRef.current.deltaX);
       setDebugSwipeVelocity(debugRef.current.swipeVelocity);
-      setDebugImpulse(debugRef.current.impulse);
     }, 100);
 
     return () => window.clearInterval(id);
@@ -397,7 +319,6 @@ export default function Home() {
       mountedRef.current = false;
 
       stopLoop();
-      stopSpinLoop();
 
       handLandmarkerRef.current?.close();
       handLandmarkerRef.current = null;
@@ -575,13 +496,16 @@ export default function Home() {
     if (!mountedRef.current) return;
 
     const front = frontVideoRef.current;
+    const back = backVideoRef.current;
     const firstPreloaded = preloadedVideosRef.current.get(0);
-    if (front && firstPreloaded) {
+
+    if (front && back && firstPreloaded) {
       const initialSrc = firstPreloaded.currentSrc || firstPreloaded.src;
       front.src = initialSrc;
       front.currentTime = 0;
       front.style.opacity = "1";
-      backVideoRef.current!.style.opacity = "0";
+      back.style.opacity = "0";
+
       try {
         await front.play();
         await waitForReadyFrame(front);
@@ -608,19 +532,26 @@ export default function Home() {
       processFrame(metadata);
 
       const currentVideo = webcamRef.current as VideoWithFrameCallback | null;
-      if (!currentVideo || !mountedRef.current || !startedLoopRef.current) return;
+      if (
+        !currentVideo ||
+        !mountedRef.current ||
+        !startedLoopRef.current
+      )
+        return;
 
       if (typeof currentVideo.requestVideoFrameCallback === "function") {
-        videoFrameCallbackIdRef.current =
-          currentVideo.requestVideoFrameCallback(tick as VideoFrameRequestCallback);
+        videoFrameCallbackIdRef.current = currentVideo.requestVideoFrameCallback(
+          tick as VideoFrameRequestCallback
+        );
       } else {
         rafRef.current = requestAnimationFrame(tick as FrameRequestCallback);
       }
     };
 
     if (typeof video.requestVideoFrameCallback === "function") {
-      videoFrameCallbackIdRef.current =
-        video.requestVideoFrameCallback(tick as VideoFrameRequestCallback);
+      videoFrameCallbackIdRef.current = video.requestVideoFrameCallback(
+        tick as VideoFrameRequestCallback
+      );
     } else {
       rafRef.current = requestAnimationFrame(tick as FrameRequestCallback);
     }
@@ -706,14 +637,7 @@ export default function Home() {
     if (deltaX >= SWIPE_DISTANCE) {
       lastSwipeAtRef.current = now;
       historyRef.current = [];
-
-      const impulse =
-        BASE_IMPULSE +
-        deltaX * DISTANCE_IMPULSE_MULTIPLIER +
-        velocity * VELOCITY_IMPULSE_MULTIPLIER;
-
-      debugRef.current.impulse = impulse;
-      addMomentum(Math.max(0.75, impulse));
+      setCurrentIndex((prev) => (prev + 1) % VIDEO_COUNT);
     }
   }
 
@@ -867,14 +791,12 @@ export default function Home() {
             fontVariantNumeric: "tabular-nums",
           }}
         >
-          <div style={{ fontWeight: 700, marginBottom: 6 }}>Momentum Debug</div>
-          <div>spinVelocity: {debugSpinVelocity.toFixed(3)}</div>
-          <div>spinPosition: {debugSpinPosition.toFixed(3)}</div>
+          <div style={{ fontWeight: 700, marginBottom: 6 }}>Swipe Debug</div>
           <div>deltaX: {debugDeltaX.toFixed(4)}</div>
           <div>swipeVelocity: {debugSwipeVelocity.toFixed(5)}</div>
-          <div>impulse: {debugImpulse.toFixed(3)}</div>
-          <div>maxSpinVelocity: {MAX_SPIN_VELOCITY}</div>
-          <div>damping: {SPIN_DAMPING_PER_SECOND}</div>
+          <div>threshold: {SWIPE_DISTANCE.toFixed(3)}</div>
+          <div>cooldownMs: {COOLDOWN_MS}</div>
+          <div>fullscreen: {isFullscreen ? "on" : "off"}</div>
         </div>
       )}
 
