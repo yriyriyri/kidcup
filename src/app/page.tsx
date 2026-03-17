@@ -41,8 +41,8 @@ export default function Home() {
   const spinRafRef = useRef<number | null>(null);
   const videoFrameCallbackIdRef = useRef<number | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const [showDebug, setShowDebug] = useState(true);
-  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showDebug, setShowDebug] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(true);
 
   const historyRef = useRef<Point[]>([]);
   const lastSwipeAtRef = useRef(0);
