@@ -726,24 +726,26 @@ export default function Home() {
         </div>
       )}
 
-      <div
-        style={{
-          position: "fixed",
-          left: 20,
-          bottom: 20,
-          zIndex: 10,
-          padding: "10px 14px",
-          borderRadius: 999,
-          background: "rgba(0,0,0,0.45)",
-          border: "1px solid rgba(255,255,255,0.12)",
-          backdropFilter: "blur(10px)",
-          fontSize: 14,
-          fontWeight: 600,
-          letterSpacing: 0.2,
-        }}
-      >
-        Video {currentIndex + 1} / {VIDEO_COUNT}
-      </div>
+      {showDebug && (
+        <div
+          style={{
+            position: "fixed",
+            left: 20,
+            bottom: 20,
+            zIndex: 10,
+            padding: "10px 14px",
+            borderRadius: 999,
+            background: "rgba(0,0,0,0.45)",
+            border: "1px solid rgba(255,255,255,0.12)",
+            backdropFilter: "blur(10px)",
+            fontSize: 14,
+            fontWeight: 600,
+            letterSpacing: 0.2,
+          }}
+        >
+          Video {currentIndex + 1} / {VIDEO_COUNT}
+        </div>
+      )}
 
       {showDebug && (
         <div
@@ -774,34 +776,34 @@ export default function Home() {
         </div>
       )}
 
-      <div
-        style={{
-          position: "fixed",
-          right: 20,
-          bottom: 20,
-          zIndex: 10,
-          width: 220,
-          aspectRatio: "4 / 3",
-          borderRadius: 18,
-          overflow: "hidden",
-          border: "1px solid rgba(255,255,255,0.12)",
-          background: "#111",
-          boxShadow: "0 12px 40px rgba(0,0,0,0.35)",
-        }}
-      >
-        <video
-          ref={webcamRef}
-          muted
-          playsInline
-          autoPlay
+        <div
           style={{
-            width: "100%",
-            height: "100%",
-            objectFit: "cover",
-            transform: "scaleX(-1)",
+            position: "fixed",
+            right: 20,
+            bottom: 20,
+            zIndex: 10,
+            width: 220,
+            aspectRatio: "4 / 3",
+            borderRadius: 18,
+            overflow: "hidden",
+            border: "1px solid rgba(255,255,255,0.12)",
+            background: "#111",
+            boxShadow: "0 12px 40px rgba(0,0,0,0.35)",
           }}
-        />
-      </div>
+        >
+          <video
+            ref={webcamRef}
+            muted
+            playsInline
+            autoPlay
+            style={{
+              width: "100%",
+              height: "100%",
+              objectFit: "cover",
+              transform: "scaleX(-1)",
+            }}
+          />
+        </div>
     </main>
   );
 }
