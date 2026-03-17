@@ -789,6 +789,8 @@ export default function Home() {
             border: "1px solid rgba(255,255,255,0.12)",
             background: "#111",
             boxShadow: "0 12px 40px rgba(0,0,0,0.35)",
+            transform: "scaleX(1.7777)",
+            transformOrigin: "bottom right",
           }}
         >
           <video
@@ -801,6 +803,7 @@ export default function Home() {
               height: "100%",
               objectFit: "cover",
               transform: "scaleX(-1)",
+              transformOrigin: "center center",
             }}
           />
         </div>
