@@ -7,6 +7,6 @@ start "Kidcup Server" cmd /k "cd /d %USERPROFILE%\Desktop\kidcup && npm run star
 
 timeout /t 5 /nobreak >nul
 
-start "" "C:\Program Files\Google\Chrome\Application\chrome.exe" http://localhost:3000
+start chrome --start-fullscreen http://localhost:3000
 
 endlocal
