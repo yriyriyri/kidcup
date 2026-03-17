@@ -35,7 +35,8 @@ type DebugValues = {
 
 export default function Home() {
   const webcamRef = useRef<HTMLVideoElement | null>(null);
-  const activeVideoRef = useRef<HTMLVideoElement | null>(null);
+  const frontVideoRef = useRef<HTMLVideoElement | null>(null);
+  const backVideoRef = useRef<HTMLVideoElement | null>(null);
   const handLandmarkerRef = useRef<HandLandmarker | null>(null);
   const rafRef = useRef<number | null>(null);
   const spinRafRef = useRef<number | null>(null);
@@ -65,6 +66,10 @@ export default function Home() {
     swipeVelocity: 0,
     impulse: 0,
   });
+
+  const visibleLayerRef = useRef<0 | 1>(0);
+  const switchTokenRef = useRef(0);
+  const currentVisibleIndexRef = useRef(0);
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [cameraReady, setCameraReady] = useState(false);
@@ -229,6 +234,87 @@ export default function Home() {
     }
   }
 
+  async function waitForReadyFrame(video: HTMLVideoElement) {
+    await new Promise<void>((resolve, reject) => {
+      if (video.readyState >= 2 && video.videoWidth > 0 && video.videoHeight > 0) {
+        resolve();
+        return;
+      }
+
+      const onLoaded = () => {
+        cleanup();
+        resolve();
+      };
+      const onError = (ev: Event) => {
+        cleanup();
+        reject(ev);
+      };
+      const cleanup = () => {
+        video.removeEventListener("loadeddata", onLoaded);
+        video.removeEventListener("error", onError);
+      };
+
+      video.addEventListener("loadeddata", onLoaded, { once: true });
+      video.addEventListener("error", onError, { once: true });
+    });
+
+    if ("requestVideoFrameCallback" in video && typeof video.requestVideoFrameCallback === "function") {
+      await new Promise<void>((resolve) => {
+        video.requestVideoFrameCallback?.(() => resolve());
+      });
+    } else {
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    }
+  }
+
+  async function switchToVideo(index: number) {
+    const token = ++switchTokenRef.current;
+
+    const front = frontVideoRef.current;
+    const back = backVideoRef.current;
+    const preloaded = preloadedVideosRef.current.get(index);
+
+    if (!front || !back || !preloaded) return;
+
+    const visible = visibleLayerRef.current === 0 ? front : back;
+    const hidden = visibleLayerRef.current === 0 ? back : front;
+    const nextSrc = preloaded.currentSrc || preloaded.src;
+
+    if (currentVisibleIndexRef.current === index && hidden.style.opacity === "0") {
+      return;
+    }
+
+    if (hidden.currentSrc !== nextSrc && hidden.src !== nextSrc) {
+      hidden.pause();
+      hidden.src = nextSrc;
+    }
+
+    hidden.currentTime = 0;
+
+    try {
+      await hidden.play();
+      await waitForReadyFrame(hidden);
+    } catch (err) {
+      console.error("Hidden layer prime failed:", err);
+      return;
+    }
+
+    if (!mountedRef.current || token !== switchTokenRef.current) {
+      return;
+    }
+
+    hidden.style.opacity = "1";
+    visible.style.opacity = "0";
+
+    currentVisibleIndexRef.current = index;
+    visibleLayerRef.current = visibleLayerRef.current === 0 ? 1 : 0;
+
+    const oldVisible = visible;
+    window.setTimeout(() => {
+      oldVisible.pause();
+    }, 40);
+  }
+
   useEffect(() => {
     const id = window.setInterval(() => {
       setDebugSpinVelocity(debugRef.current.spinVelocity);
@@ -244,25 +330,25 @@ export default function Home() {
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.repeat) return;
-  
+
       const key = event.key.toLowerCase();
-  
+
       if (key === "d") {
         setShowDebug((prev) => !prev);
       }
-  
+
       if (key === "f") {
         void toggleFullscreen();
       }
     };
-  
+
     const onFullscreenChange = () => {
       setIsFullscreen(Boolean(document.fullscreenElement));
     };
-  
+
     window.addEventListener("keydown", onKeyDown);
     document.addEventListener("fullscreenchange", onFullscreenChange);
-  
+
     return () => {
       window.removeEventListener("keydown", onKeyDown);
       document.removeEventListener("fullscreenchange", onFullscreenChange);
@@ -327,6 +413,9 @@ export default function Home() {
         video.load();
       }
       preloadedVideosRef.current.clear();
+
+      frontVideoRef.current?.pause();
+      backVideoRef.current?.pause();
     };
   }, []);
 
@@ -339,7 +428,7 @@ export default function Home() {
 
   useEffect(() => {
     if (!videosReady) return;
-    void showVideo(currentIndex);
+    void switchToVideo(currentIndex);
   }, [currentIndex, videosReady]);
 
   async function setupCamera() {
@@ -485,29 +574,25 @@ export default function Home() {
 
     if (!mountedRef.current) return;
 
+    const front = frontVideoRef.current;
+    const firstPreloaded = preloadedVideosRef.current.get(0);
+    if (front && firstPreloaded) {
+      const initialSrc = firstPreloaded.currentSrc || firstPreloaded.src;
+      front.src = initialSrc;
+      front.currentTime = 0;
+      front.style.opacity = "1";
+      backVideoRef.current!.style.opacity = "0";
+      try {
+        await front.play();
+        await waitForReadyFrame(front);
+      } catch (err) {
+        console.error("Initial front layer play failed:", err);
+      }
+    }
+
+    currentVisibleIndexRef.current = 0;
+    visibleLayerRef.current = 0;
     setVideosReady(true);
-  }
-
-  async function showVideo(index: number) {
-    const activeVideo = activeVideoRef.current;
-    const preloaded = preloadedVideosRef.current.get(index);
-
-    if (!activeVideo || !preloaded) return;
-
-    const nextSrc = preloaded.currentSrc || preloaded.src;
-
-    if (activeVideo.currentSrc !== nextSrc && activeVideo.src !== nextSrc) {
-      activeVideo.pause();
-      activeVideo.src = nextSrc;
-    }
-
-    activeVideo.currentTime = 0;
-
-    try {
-      await activeVideo.play();
-    } catch (err) {
-      console.error("activeVideo.play failed:", err);
-    }
   }
 
   function startLoop() {
@@ -632,6 +717,18 @@ export default function Home() {
     }
   }
 
+  const fullscreenVideoStyle: React.CSSProperties = {
+    position: "absolute",
+    inset: 0,
+    width: "100%",
+    height: "100%",
+    objectFit: "fill",
+    pointerEvents: "none",
+    background: "#000",
+    transition: "opacity 40ms linear",
+    willChange: "opacity",
+  };
+
   return (
     <main
       style={{
@@ -653,22 +750,27 @@ export default function Home() {
         }}
       >
         <video
-          ref={activeVideoRef}
-          src="/videos/1.mp4"
+          ref={frontVideoRef}
           muted
           loop
           playsInline
           preload="auto"
           style={{
-            position: "absolute",
-            inset: 0,
-            width: "100%",
-            height: "100%",
-            objectFit: "fill",
+            ...fullscreenVideoStyle,
             opacity: appReady ? 1 : 0,
-            transition: "opacity 0ms linear",
-            pointerEvents: "none",
-            background: "#000",
+            zIndex: 0,
+          }}
+        />
+        <video
+          ref={backVideoRef}
+          muted
+          loop
+          playsInline
+          preload="auto"
+          style={{
+            ...fullscreenVideoStyle,
+            opacity: 0,
+            zIndex: 1,
           }}
         />
       </div>
@@ -776,37 +878,38 @@ export default function Home() {
         </div>
       )}
 
-        <div
+      <div
+        style={{
+          position: "fixed",
+          right: 20,
+          bottom: 20,
+          zIndex: 10,
+          width: 220,
+          aspectRatio: "4 / 3",
+          borderRadius: 18,
+          overflow: "hidden",
+          border: "1px solid rgba(255,255,255,0.12)",
+          background: "#111",
+          boxShadow: "0 12px 40px rgba(0,0,0,0.35)",
+          transform: "scaleX(1.7777)",
+          transformOrigin: "bottom right",
+          pointerEvents: "none",
+        }}
+      >
+        <video
+          ref={webcamRef}
+          muted
+          playsInline
+          autoPlay
           style={{
-            position: "fixed",
-            right: 20,
-            bottom: 20,
-            zIndex: 10,
-            width: 220,
-            aspectRatio: "4 / 3",
-            borderRadius: 18,
-            overflow: "hidden",
-            border: "1px solid rgba(255,255,255,0.12)",
-            background: "#111",
-            boxShadow: "0 12px 40px rgba(0,0,0,0.35)",
-            transform: "scaleX(1.7777)",
-            transformOrigin: "bottom right",
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+            transform: "scaleX(-1)",
+            transformOrigin: "center center",
           }}
-        >
-          <video
-            ref={webcamRef}
-            muted
-            playsInline
-            autoPlay
-            style={{
-              width: "100%",
-              height: "100%",
-              objectFit: "cover",
-              transform: "scaleX(-1)",
-              transformOrigin: "center center",
-            }}
-          />
-        </div>
+        />
+      </div>
     </main>
   );
 }
