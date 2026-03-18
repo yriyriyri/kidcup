@@ -5,7 +5,7 @@ import { FilesetResolver, HandLandmarker } from "@mediapipe/tasks-vision";
 
 const VIDEO_COUNT = 5;
 const SWIPE_DISTANCE = 0.01;
-const SWIPE_TIME_MS = 240;
+const SWIPE_TIME_MS = 150;
 const COOLDOWN_MS = 1000;
 
 type Point = {
