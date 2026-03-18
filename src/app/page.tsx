@@ -4,8 +4,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { FilesetResolver, HandLandmarker } from "@mediapipe/tasks-vision";
 
 const VIDEO_COUNT = 5;
-const SWIPE_DISTANCE = 0.008;
-const SWIPE_TIME_MS = 150;
+const SWIPE_DISTANCE = 0.01;
+const SWIPE_TIME_MS = 200;
 const COOLDOWN_MS = 1000;
 
 type Point = {
@@ -607,7 +607,6 @@ export default function Home() {
 
     const hand = result.landmarks?.[0];
     if (!hand) {
-      historyRef.current = [];
       return;
     }
 
