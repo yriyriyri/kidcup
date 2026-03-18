@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { FilesetResolver, HandLandmarker, NormalizedLandmark } from "@mediapipe/tasks-vision";
 
 const VIDEO_COUNT = 5;
-const SWIPE_DISTANCE = 0.02;
+const SWIPE_DISTANCE = 0.03;
 const SWIPE_TIME_MS = 250;
 const COOLDOWN_MS = 1000;
 const PRIMARY_HAND_STICKINESS_BONUS = 0.015;
