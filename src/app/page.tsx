@@ -4,8 +4,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { FilesetResolver, HandLandmarker } from "@mediapipe/tasks-vision";
 
 const VIDEO_COUNT = 5;
-const SWIPE_DISTANCE = 0.01;
-const SWIPE_TIME_MS = 200;
+const SWIPE_DISTANCE = 0.02;
+const SWIPE_TIME_MS = 250;
 const COOLDOWN_MS = 1000;
 
 type Point = {
