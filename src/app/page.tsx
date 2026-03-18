@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { FilesetResolver, HandLandmarker } from "@mediapipe/tasks-vision";
+import { FilesetResolver, HandLandmarker, NormalizedLandmark } from "@mediapipe/tasks-vision";
 
 const VIDEO_COUNT = 5;
 const SWIPE_DISTANCE = 0.02;
 const SWIPE_TIME_MS = 250;
 const COOLDOWN_MS = 1000;
+const PRIMARY_HAND_STICKINESS_BONUS = 0.015;
 
 type Point = {
   x: number;
@@ -41,7 +42,7 @@ export default function Home() {
   const startedLoopRef = useRef(false);
   const mountedRef = useRef(true);
   const warnedDetectErrorRef = useRef(false);
-
+  const activeHandIndexRef = useRef<number | null>(null);
   const preloadedVideosRef = useRef<Map<number, HTMLVideoElement>>(new Map());
 
   const debugRef = useRef<DebugValues>({
@@ -102,6 +103,7 @@ export default function Home() {
     lastSwipeAtRef.current = 0;
     lastDetectTimestampRef.current = 0;
     warnedDetectErrorRef.current = false;
+    activeHandIndexRef.current = null;
   }
 
   function stopLoop() {
@@ -407,7 +409,7 @@ export default function Home() {
           "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",
       },
       runningMode: "VIDEO",
-      numHands: 1,
+      numHands: 2,
       minHandDetectionConfidence: 0.5,
       minHandPresenceConfidence: 0.5,
       minTrackingConfidence: 0.5,
@@ -519,6 +521,50 @@ export default function Home() {
     setVideosReady(true);
   }
 
+  function getHandSizeScore(hand: NormalizedLandmark[]) {
+    let minX = Infinity;
+    let maxX = -Infinity;
+    let minY = Infinity;
+    let maxY = -Infinity;
+
+    for (const p of hand) {
+      if (p.x < minX) minX = p.x;
+      if (p.x > maxX) maxX = p.x;
+      if (p.y < minY) minY = p.y;
+      if (p.y > maxY) maxY = p.y;
+    }
+
+    const width = maxX - minX;
+    const height = maxY - minY;
+    return width * height;
+  }
+
+  function selectPrimaryHand(hands: NormalizedLandmark[][]) {
+    if (hands.length === 0) {
+      activeHandIndexRef.current = null;
+      return null;
+    }
+
+    let bestIndex = 0;
+    let bestScore = -Infinity;
+
+    for (let i = 0; i < hands.length; i += 1) {
+      let score = getHandSizeScore(hands[i]);
+
+      if (activeHandIndexRef.current === i) {
+        score += PRIMARY_HAND_STICKINESS_BONUS;
+      }
+
+      if (score > bestScore) {
+        bestScore = score;
+        bestIndex = i;
+      }
+    }
+
+    activeHandIndexRef.current = bestIndex;
+    return hands[bestIndex];
+  }
+
   function startLoop() {
     const video = webcamRef.current as VideoWithFrameCallback | null;
     if (!video) return;
@@ -601,11 +647,14 @@ export default function Home() {
       }
 
       historyRef.current = [];
+      activeHandIndexRef.current = null;
       void reinitHandTrackingSilently();
       return;
     }
 
-    const hand = result.landmarks?.[0];
+    const hands = result.landmarks ?? [];
+    const hand = selectPrimaryHand(hands);
+
     if (!hand) {
       return;
     }
