@@ -408,9 +408,9 @@ export default function Home() {
       },
       runningMode: "VIDEO",
       numHands: 1,
-      minHandDetectionConfidence: 0.75,
-      minHandPresenceConfidence: 0.75,
-      minTrackingConfidence: 0.75,
+      minHandDetectionConfidence: 0.5,
+      minHandPresenceConfidence: 0.5,
+      minTrackingConfidence: 0.5,
     });
   }
 
