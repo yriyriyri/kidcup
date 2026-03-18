@@ -776,7 +776,7 @@ export default function Home() {
                 marginBottom: 14,
               }}
             >
-              kidcup-demo
+              kidcup-playground
             </div>
 
             {error ? (
